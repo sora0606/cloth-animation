@@ -1,14 +1,22 @@
 import * as THREE from 'three';
+import { ParametricGeometry } from 'three/examples/jsm/geometries/ParametricGeometry.js';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 
-import vertex from "./shader/vertex.glsl"
-import fragment from "./shader/fragment.glsl"
+import vertex from "./shader/vertex.glsl";
+import fragment from "./shader/fragment.glsl";
+
+import grass from "../texture/grasslight.jpg";
+import pattern from "../texture/circuit_pattern.png";
 
 import dat from "dat.gui";
+import { plane } from './_lib';
+import Cloth from './modules/cloth';
 
 export default class Sketch {
     constructor(opstions) {
         this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x000000);
+        this.scene.fog = new THREE.Fog(0x000000, 500, 10000);
 
         this.container = opstions.dom;
         this.width = this.container.offsetWidth;
@@ -17,25 +25,31 @@ export default class Sketch {
         this.renderer = new THREE.WebGLRenderer();
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.setSize(this.width, this.height);
-        this.renderer.setClearColor(0xeeeeee, 1);
+        this.renderer.setClearColor(0x000000, 1);
 
         this.container.appendChild(this.renderer.domElement);
 
 
         this.camera = new THREE.PerspectiveCamera(
-            70,
+            30,
             window.innerWidth / window.innerHeight,
-            0.001,
-            1000.0
+            1.0,
+            10000.0
         );
-        this.camera.position.set(0.0, 0.0, 2.0);
+        this.camera.position.set(1000.0, 50.0, 1500.0);
 
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.time = 0;
 
+        this.loader = new THREE.TextureLoader();
+        this.clothFunction = plane(25 * 10, 25 * 10);
+        this.cloth = new Cloth(10, 10, this.clothFunction);
+
         this.isPlaying = true;
 
-        this.addObjects();
+        this.addCloth();
+        this.addGround();
+        this.addLight();
         this.resize();
         this.render();
         this.setupResize();
@@ -65,35 +79,68 @@ export default class Sketch {
         this.camera.updateProjectionMatrix();
     }
 
-    addObjects() {
+    addCloth() {
         let that = this;
-        this.material = new THREE.ShaderMaterial({
-            extensions: {
-                derivatives: "#extension GL_OES_standard_derivatives : enable"
-            },
+        const clothMaterial = new THREE.MeshLambertMaterial({
+            map: this.loader.load(pattern),
             side: THREE.DoubleSide,
-            uniforms: {
-                time: { value: 0 },
-                resolution: { value: new THREE.Vector4() },
-            },
-            // wireframe: true,
-            // transparent: true,
-            vertexShader: vertex,
-            fragmentShader: fragment,
+            alphaTest: 0.5
         });
 
-        this.geometry = new THREE.PlaneGeometry(1.0, 1.0, 1.0, 1.0);
+        const clothGeometry = new ParametricGeometry(
+            this.clothFunction,
+            this.cloth.w,
+            this.cloth.h
+        );
 
-        this.plane = new THREE.Mesh(this.geometry, this.material);
-        this.scene.add(this.plane);
+        this.clothMesh = new THREE.Mesh(clothGeometry, clothMaterial);
+        this.clothMesh.castShadow = true;
+        this.scene.add(this.clothMesh);
+
+        this.clothMesh.customDepthMaterial = new THREE.MeshDepthMaterial({
+            depthPacking: THREE.RGBADepthPacking,
+            map: this.loader.load(pattern),
+            alphaTest: 0.5
+        });
     }
 
-    addLight(){
-        const light1 = new THREE.AmbientLight(0xffffff, 0.5);
+    addGround() {
+        const texture = this.loader.load(grass);
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(25, 25);
+        texture.anisotropy = 16;
+
+        const groundMaterial = new THREE.MeshLambertMaterial({ map: texture });
+
+        this.ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(20000.0, 20000.0),
+            groundMaterial
+        );
+        this.ground.position.y = -250;
+        this.ground.rotation.x = -Math.PI / 2;
+        this.ground.receiveShadow = true;
+        this.scene.add(this.ground);
+    }
+
+    addLight() {
+        const light1 = new THREE.AmbientLight(0x666666);
         this.scene.add(light1);
 
-        const light2 = new THREE.DirectionalLight(0xffffff, 0.5);
-        light2.position.set(0.5, 0.0, 0.866)
+        const light2 = new THREE.DirectionalLight(0xdfebff, 1);
+        light2.position.set(50.0, 200.0, 100.0);
+        light2.position.multiplyScalar(1.3);
+        light2.castShadow = true;
+
+        light2.shadow.mapSize.width = 1024;
+        light2.shadow.mapSize.height = 1024;
+        const d = 300;
+
+        light2.shadow.camera.left = -d;
+        light2.shadow.camera.right = d;
+        light2.shadow.camera.top = d;
+        light2.shadow.camera.bottom = -d;
+
+        light2.shadow.camera.far = 1000;
         this.scene.add(light2);
     }
 
