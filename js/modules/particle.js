@@ -14,6 +14,9 @@ export default class Particle {
         this.tmp = new THREE.Vector3();
         this.tmp2 = new THREE.Vector3();
 
+        const DAMPING = 0.03;
+        this.DRAG = 1 - DAMPING;
+
         this.init();
     }
 
@@ -21,5 +24,21 @@ export default class Particle {
         this.cloth(this.x, this.y, this.position);
         this.cloth(this.x, this.y, this.previous);
         this.cloth(this.x, this.y, this.original);
+    }
+
+    addForce(force){
+        this.a.add(this.tmp2.copy(force).multiplyScalar(this.invMass));
+    }
+
+    integrate(timesq){
+        const newPos = this.tmp.subVectors(this.position, this.previous);
+        newPos.multiplyScalar(this.DRAG).add(this.position);
+        newPos.add(this.a.multiplyScalar(timesq));
+
+        this.tmp = this.previous;
+        this.previous = this.position;
+        this.position = newPos;
+
+        this.a.set(0.0, 0.0, 0.0);
     }
 }

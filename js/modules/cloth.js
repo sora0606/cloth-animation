@@ -12,14 +12,14 @@ export default class Cloth {
         this.init(w, h, clothFunction);
     }
 
-    init(w, h, clothFunction){
+    init(w, h, clothFunction) {
         const particles = [];
         const constraints = [];
         let u, v;
 
         for (v = 0; v <= h; v++) {
             for (u = 0; u <= w; u++) {
-                particles.push(new Particle(clothFunction, u / w, v / h,0.1));
+                particles.push(new Particle(clothFunction, u / w, v / h, 0.1));
             }
         }
 

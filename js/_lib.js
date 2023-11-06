@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export function clamp(value, min, max){
     return Math.max(min, Math.min(max, value));
 }
@@ -18,4 +20,15 @@ export function plane(width, height){
 
 export function index(u, v, w) {
     return u + v * (w + 1);
+}
+
+export function satisfyConstraints(p1, p2, distance) {
+    const diff = new THREE.Vector3();
+    diff.subVectors(p2.position, p1.position);
+    var currentDist = diff.length();
+    if (currentDist === 0) return; // prevents division by 0
+    var correction = diff.multiplyScalar(1 - distance / currentDist);
+    var correctionHalf = correction.multiplyScalar(0.5);
+    p1.position.add(correctionHalf);
+    p2.position.sub(correctionHalf);
 }
